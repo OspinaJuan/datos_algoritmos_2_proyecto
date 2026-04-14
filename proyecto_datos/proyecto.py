@@ -2,10 +2,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
-# crear app
 app = FastAPI()
 
-# almacenamiento en memoria (como vimos en clase)
 tareas = {}
 
 # modelo para crear tarea
@@ -16,7 +14,7 @@ class Tarea(BaseModel):
     prioridad: int = Field(..., ge=1, le=5)
 
 
-# modelo para actualizar (todo opcional)
+# modelo para actualizar
 class TareaUpdate(BaseModel):
     descripcion: Optional[str] = None
     completada: Optional[bool] = None
@@ -85,7 +83,7 @@ def eliminar_tarea(titulo: str):
     return {"mensaje": "Tarea eliminada"}
 
 
-# extra: filtrar por prioridad
+# filtrar por prioridad
 @app.get("/tareas/prioridad/{prioridad}")
 def tareas_por_prioridad(prioridad: int):
     if prioridad < 1 or prioridad > 5:
