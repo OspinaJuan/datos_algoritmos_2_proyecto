@@ -11,6 +11,73 @@ historial = []
 pendientes = deque()
 
 
+class Nodo:
+    def __init__(self, valor):
+        self.valor = valor
+        self.siguiente = None
+
+
+class ListaEnlazada:
+    def __init__(self):
+        self.cabeza = None
+
+    def agregar(self, valor):
+        nuevo = Nodo(valor)
+        if not self.cabeza:
+            self.cabeza = nuevo
+        else:
+            actual = self.cabeza
+            while actual.siguiente:
+                actual = actual.siguiente
+            actual.siguiente = nuevo
+
+    def contiene(self, valor):
+        actual = self.cabeza
+        while actual:
+            if actual.valor == valor:
+                return True
+            actual = actual.siguiente
+        return False
+
+    def obtener_todos(self):
+        elementos = []
+        actual = self.cabeza
+        while actual:
+            elementos.append(actual.valor)
+            actual = actual.siguiente
+        return elementos
+
+
+class Grafo:
+    def __init__(self):
+        self.lista_adyacencia = {}
+
+    def agregar_vertice(self, vertice):
+        if vertice not in self.lista_adyacencia:
+            self.lista_adyacencia[vertice] = ListaEnlazada()
+
+    def agregar_arista(self, v1, v2):
+        if v1 not in self.lista_adyacencia or v2 not in self.lista_adyacencia:
+            raise ValueError()
+
+        if not self.lista_adyacencia[v1].contiene(v2):
+            self.lista_adyacencia[v1].agregar(v2)
+
+        if not self.lista_adyacencia[v2].contiene(v1):
+            self.lista_adyacencia[v2].agregar(v1)
+
+    def adyacentes(self, vertice):
+        if vertice not in self.lista_adyacencia:
+            return []
+        return self.lista_adyacencia[vertice].obtener_todos()
+
+    def grado(self, vertice):
+        return len(self.adyacentes(vertice))
+
+
+grafo_tareas = Grafo()
+
+
 class Tarea(BaseModel):
     titulo: str = Field(..., min_length=3)
     descripcion: Optional[str] = None
@@ -40,6 +107,8 @@ def crear_tarea(tarea: Tarea):
     tareas_lista.append(data)
     pendientes.append(data)
     historial.append(("crear", tarea.titulo))
+
+    grafo_tareas.agregar_vertice(tarea.titulo)
 
     return data
 
@@ -158,3 +227,32 @@ def atender_pendiente():
         raise HTTPException(status_code=400, detail="No hay pendientes")
 
     return pendientes.popleft()
+
+
+@app.post("/relaciones")
+def crear_relacion(t1: str, t2: str):
+    if t1 not in tareas_dict or t2 not in tareas_dict:
+        raise HTTPException(status_code=404, detail="Una de las tareas no existe")
+
+    try:
+        grafo_tareas.agregar_arista(t1, t2)
+    except:
+        raise HTTPException(status_code=400, detail="Error al crear relacion")
+
+    return {"mensaje": "Relacion creada"}
+
+
+@app.get("/tareas/{titulo}/relaciones")
+def ver_relaciones(titulo: str):
+    if titulo not in tareas_dict:
+        raise HTTPException(status_code=404, detail="No encontrada")
+
+    return grafo_tareas.adyacentes(titulo)
+
+
+@app.get("/tareas/{titulo}/grado")
+def grado_tarea(titulo: str):
+    if titulo not in tareas_dict:
+        raise HTTPException(status_code=404, detail="No encontrada")
+
+    return {"grado": grafo_tareas.grado(titulo)}
